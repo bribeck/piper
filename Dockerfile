@@ -19,6 +19,7 @@ RUN \
     && pip3 install --no-cache-dir -U \
         setuptools \
         wheel \
+    && pip install --only-binary=:all: --no-cache-dir "numpy==1.26.4"\
     && pip3 install --no-cache-dir \
         --extra-index-url https://www.piwheels.org/simple \
         --extra-index-url https://download.pytorch.org/whl/cpu \
