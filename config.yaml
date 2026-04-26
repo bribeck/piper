@@ -3,7 +3,7 @@ version: 2.2.1
 slug: piper
 name: Piper
 description: Text-to-speech with Piper
-url: https://github.com/bribeck/addons/blob/master/piper
+url: https://github.com/bribeck/piper
 arch:
   - amd64
   - aarch64
