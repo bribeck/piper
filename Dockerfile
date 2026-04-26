@@ -1,36 +1,36 @@
-#!/command/with-contenv bashio
-# vim: ft=bash
-# shellcheck shell=bash
-# ==============================================================================
-# Start Piper service
-# ==============================================================================
-flags=()
-if bashio::config.true 'update_voices'; then
-    flags+=('--update-voices')
-fi
+ARG BUILD_FROM
+FROM ${BUILD_FROM}
 
-if bashio::config.true 'debug_logging'; then
-    flags+=('--debug')
-fi
+# Set shell
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Delete old options
-options=$(bashio::addon.options)
-for old_key in 'max_piper_procs' 'streaming'; do
-    if bashio::jq.exists "${options}" ".${old_key}"; then
-        bashio::log.info "Removing ${old_key}"
-        bashio::addon.option "${old_key}"
-    fi
-done
+# Install Piper
+WORKDIR /usr/src
+ARG BUILD_ARCH
+ARG WYOMING_PIPER_VERSION
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+RUN \
+    apt-get update \
+    && apt-get install -y --no-install-recommends \
+        netcat-traditional \
+        python3 \
+        python3-pip \
+    \
+    && pip3 install --no-cache-dir -U \
+        setuptools \
+        wheel \
+    && pip3 install --no-cache-dir \
+        --extra-index-url https://www.piwheels.org/simple \
+        --extra-index-url https://download.pytorch.org/whl/cpu \
+        "wyoming-piper[zeroconf,zh] @ https://github.com/rhasspy/wyoming-piper/archive/refs/tags/v${WYOMING_PIPER_VERSION}.tar.gz" \
+    \
+    && rm -rf /var/lib/apt/lists/*
 
-# shellcheck disable=SC2068
-exec python3 -m wyoming_piper \
-    --uri 'tcp://0.0.0.0:10200' \
-    --zeroconf \
-    --length-scale "$(bashio::config 'length_scale')" \
-    --noise-scale "$(bashio::config 'noise_scale')" \
-    --noise-w "$(bashio::config 'noise_w')" \
-    --speaker "$(bashio::config 'speaker')" \
-    --voice "$(bashio::config 'voice')" \
-    --data-dir /data \
-    --data-dir /share/piper \
-    --download-dir /data ${flags[@]}
+WORKDIR /
+COPY rootfs /
+
+HEALTHCHECK --start-period=10m \
+    CMD echo '{ "type": "describe" }' \
+        | nc -w 1 localhost 10200 \
+        | grep -q "piper" \
+        || exit 1
